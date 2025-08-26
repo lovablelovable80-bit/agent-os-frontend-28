@@ -171,7 +171,7 @@ const IA = () => {
   const carregarConfiguracoes = async () => {
     try {
       const { data, error } = await supabase
-        .from('configuracoes_ia')
+        .from('ai_assistants')
         .select('*')
         .maybeSingle();
 
@@ -198,18 +198,28 @@ const IA = () => {
   const salvarConfiguracoes = async () => {
     setLoading(true);
     try {
-      const user = await supabase.auth.getUser();
-      const empresa_id = user.data.user?.user_metadata?.empresa_id;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      // Get user's company_id from profiles table
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', user.id)
+        .single();
       
-      if (!empresa_id) {
+      if (!profile?.company_id) {
         throw new Error('Empresa não identificada');
       }
 
       const { error } = await supabase
-        .from('configuracoes_ia')
+        .from('ai_assistants')
         .upsert({
           ...iaConfig,
-          empresa_id
+          company_id: profile.company_id,
+          created_by: user.id
         });
 
       if (error) throw error;
